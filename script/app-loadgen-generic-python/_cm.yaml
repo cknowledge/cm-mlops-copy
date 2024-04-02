@@ -1,0 +1,238 @@
+# Identification of this CM script
+alias: app-loadgen-generic-python
+uid: d3d949cc361747a6
+
+automation_alias: script
+automation_uid: 5b4e0237da074764
+
+category: "Modular MLPerf inference benchmark pipeline"
+
+developers: "[Gaz Iqbal](https://www.linkedin.com/in/gaziqbal), [Arjun Suresh](https://www.linkedin.com/in/arjunsuresh), [Grigori Fursin](https://cKnowledge.org/gfursin)"
+
+
+# User-friendly tags to find this CM script
+tags:
+  - app
+  - loadgen
+  - generic
+  - loadgen-generic
+  - python
+
+tags_help: "python app generic loadgen"
+
+
+# Default environment
+default_env:
+  CM_MLPERF_EXECUTION_MODE: parallel
+  CM_MLPERF_BACKEND: onnxruntime
+
+# Map script inputs to environment variables
+input_mapping:
+  output_dir: CM_MLPERF_OUTPUT_DIR
+  scenario: CM_MLPERF_LOADGEN_SCENARIO
+  runner: CM_MLPERF_RUNNER
+  concurrency: CM_MLPERF_CONCURRENCY
+  ep: CM_MLPERF_EXECUTION_PROVIDER
+  intraop: CM_MLPERF_INTRAOP
+  interop: CM_MLPERF_INTEROP
+  execmode: CM_MLPERF_EXEC_MODE
+  modelpath: CM_ML_MODEL_FILE_WITH_PATH
+  samples: CM_MLPERF_LOADGEN_SAMPLES
+
+new_env_keys:
+  - CM_MLPERF_*
+
+# Dependencies on other CM scripts
+
+deps:
+
+  # Detect host OS features
+  - tags: detect,os
+
+  # Detect host CPU features
+  - tags: detect,cpu
+
+  # Get Python
+  - tags: get,python3
+    names:
+      - python
+      - python3
+
+  # Extra package
+  - tags: get,generic-python-lib,_psutil
+
+  # Detect CUDA if required
+  - tags: get,cuda
+    enable_if_env:
+      CM_MLPERF_DEVICE:
+      - gpu
+
+  # Install loadgen
+  - tags: get,loadgen
+    names:
+    - loadgen
+
+  ########################################################################
+  # Install ML engines via CM
+  - enable_if_env:
+      CM_MLPERF_BACKEND:
+      - onnxruntime
+      CM_MLPERF_DEVICE:
+      - cpu
+    tags: get,generic-python-lib,_onnxruntime
+    names:
+    - onnxruntime
+
+  - enable_if_env:
+      CM_MLPERF_BACKEND:
+      - onnxruntime
+      CM_MLPERF_DEVICE:
+      - gpu
+    tags: get,generic-python-lib,_onnxruntime_gpu
+    names:
+    - onnxruntime
+
+  - enable_if_env:
+      CM_MLPERF_BACKEND:
+      - onnxruntime
+    tags: get,generic-python-lib,_onnx
+    names:
+    - onnx
+
+  ########################################################################
+  # Install MLPerf models
+  - enable_if_env:
+      CM_MODEL:
+      - resnet50
+    tags: get,ml-model,resnet50,_onnx
+
+  - enable_if_env:
+      CM_MODEL:
+      - retinanet
+    tags: get,ml-model,retinanet,_onnx,_fp32
+
+  - enable_if_env:
+      CM_MODEL:
+      - retinanet
+    tags: get,ml-model,retinanet,_onnx,_fp32
+
+
+# Customize this CM script
+variations:
+
+  pytorch:
+    group: backend
+    env:
+      CM_MLPERF_BACKEND:
+        pytorch
+
+  onnxruntime:
+    group: backend
+    default: true
+    env:
+      CM_MLPERF_BACKEND:
+        onnxruntime
+
+
+
+  cpu:
+    group:
+      device
+    default:
+      True
+    env:
+      CM_MLPERF_DEVICE:
+        cpu
+      CM_MLPERF_EXECUTION_PROVIDER:
+        CPUExecutionProvider
+
+  cuda:
+    group:
+      device
+    env:
+      CM_MLPERF_DEVICE:
+        gpu
+      CM_MLPERF_EXECUTION_PROVIDER:
+        CUDAExecutionProvider
+
+
+
+  retinanet:
+    group:
+      models
+    env:
+      CM_MODEL: retinanet
+
+  resnet50:
+    group:
+      models
+    env:
+      CM_MODEL: resnet50
+
+
+  
+  custom:
+    group:
+      models
+    env:
+      CM_MODEL: custom
+
+
+  huggingface:
+    env:
+      CM_CUSTOM_MODEL_SOURCE: huggingface
+
+  custom,huggingface:
+    deps:
+    - tags: get,ml-model,huggingface
+      names:
+      - hf-downloader
+      update_tags_from_env_with_prefix:
+        "_model-stub.":
+        - CM_ML_MODEL_STUB
+
+  model-stub.#:
+    env:
+      CM_ML_MODEL_STUB: "#"
+
+input_description:
+  modelpath: 
+    desc: Full path to a model
+  ep: 
+    desc: ONNX Execution provider
+  scenario: 
+    desc: MLPerf LoadGen scenario
+  samples: 
+    desc: Number of samples
+    default: 2
+  runner: 
+    desc: MLPerf runner
+  execmode: 
+    desc: MLPerf exec mode
+  output_dir: 
+    desc: MLPerf output directory
+  concurrency: 
+    desc: MLPerf concurrency
+  intraop: 
+    desc: MLPerf intra op threads
+  interop: 
+    desc: MLPerf inter op threads
+
+docker:
+  skip_run_cmd: 'no'
+  all_gpus: 'yes'
+  input_paths:
+    - modelpath
+    - env.CM_ML_MODEL_FILE_WITH_PATH
+    - output_dir
+  skip_input_for_fake_run:
+    - modelpath
+    - env.CM_ML_MODEL_FILE_WITH_PATH
+    - output_dir
+    - scenario
+    - runner
+    - concurrency
+    - intraop
+    - interop
+    - execmode
+    - samples
